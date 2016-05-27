@@ -32,7 +32,9 @@ function processAsyncRequests() {
     var r = request.url;
     var q = request.query;
     var h = request.callback;
-    if (r === 'query') { console.log(q); }
+    if (r === 'query') { 
+        //console.log(q); 
+    }
     processingAsync = true;
     //console.log("+ LOCKING");
     //console.log("TRIGGERING", r, q);
@@ -115,7 +117,7 @@ function asyncQueryAndUndo(q) { return asyncRequest('queryundo', q); }
 function asyncUndo()          { return asyncRequest('undo', ''); }
 function asyncRevision()      { return asyncRequest('revision', ''); }
 function asyncRewind(delta) {
-    console.log('Rewind', delta);
+    //console.log('Rewind', delta);
     return asyncRequest('rewind', delta);
 }
 function asyncLog(s) {
