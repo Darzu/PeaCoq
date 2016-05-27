@@ -7,3 +7,4 @@ plugin/
 *.png
 *.svg
 .stack-work/
+.cabal-sandbox
