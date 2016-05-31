@@ -427,6 +427,9 @@ function undoCallback(fromUser, undone, response) {
             }
         }
         response.rResponse.contents[0] = ""; // don't show the user the steps number
+        //HACK
+        if (brute)
+            brute.onUndoCallback(response)
         break;
     };
     updateCoqtopPane(goingUp, response);
@@ -1244,6 +1247,10 @@ function editorOnResponse(requestType, request, response) {
                     createProofTree(response);
                 }
             }
+
+            //HACK
+            if (brute)
+                brute.onGoodQuery(request, response);
 
             break;
 

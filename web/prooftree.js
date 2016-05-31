@@ -179,6 +179,8 @@ function ProofTree(anchor, width, height,
 
     activeProofTree = this;
 
+    //HACK brute hooks
+    self.brute = new Brute(self);
 }
 
 var goalShare = 15 / 20;
@@ -690,9 +692,13 @@ ProofTree.prototype.processTactics = function() {
     */
 
     this.onStartProcessing();
+    //HACK brute hook
+    brute.onPtStartProcessing();
 
     if (_(this.tacticsWorklist).isEmpty()) {
         this.onEndProcessing();
+        //HACK brute hook
+        brute.onPtEndProcessing();
         return Promise.resolve();
     }
 
@@ -766,6 +772,8 @@ ProofTree.prototype.refreshTactics = function() {
 
     this.processTactics();
 
+    //HACK hooks for brute
+    brute.onPtTacticsRefresh();
 }
 
 ProofTree.prototype.findOrCreateGroup = function(goalNode, groupName) {
