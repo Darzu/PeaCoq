@@ -272,6 +272,23 @@ function addSettings(buttonGroup) {
 
 }
 
+function addGoals(buttonGroup) {
+    $("<button>", {
+        "class": "btn btn-default",
+        "data-target": "help",
+        "data-toggle": "modal",
+        "id": "feedback-button",
+        "html": $("<span>")
+            .append(mkGlyph("fire"))
+            .append(nbsp + nbsp + "Goals"),
+    })
+        .appendTo(buttonGroup)
+        .on("click", function() {
+            $("#goals").modal();    
+        })
+    ;
+}
+
 function addHelp(buttonGroup) {
     $("<button>", {
         "class": "btn btn-default",

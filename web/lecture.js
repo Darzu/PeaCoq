@@ -6,6 +6,7 @@ var zwsp = "\u200B";
 var namesPossiblyInScope = [];
 var focusedOnEditor = true;
 var activeProofTrees = [];
+var goals = new Goals();
 
 var unicodeList = [
     ("forall", "∀"),
@@ -33,6 +34,7 @@ $(document).ready(function() {
     addLoadLocal(buttonGroup);
     addSaveLocal(buttonGroup);
     addSettings(buttonGroup);
+    addGoals(buttonGroup);
     addHelp(buttonGroup);
 
     // addFeedback(buttonGroup);
@@ -1248,6 +1250,13 @@ function editorOnResponse(requestType, request, response) {
                     createProofTree(response);
                 }
             }
+
+            goals.update(response);
+
+            //HACK
+            if (brute)
+                brute.onGoodQuery(request, response);
+
             break;
 
         case 'Fail':
