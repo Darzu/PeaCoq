@@ -179,17 +179,17 @@ Brute.prototype.update = function(response) {
 }
 Brute.prototype.onUndoCallback = function(response) {
   this.update(response);
+  goals.update(response);
 }
 Brute.prototype.onQueryResponse = function(response) {
   this.update(response);
+  goals.update(response);
 }
 Brute.prototype.onProofFound = function(attempt) {
-  var sln = attempt.solution;
-  console.log("YAY! " + sln);
+  goals.onProofFound(attempt)
 }
 Brute.prototype.onProofInvalidated = function(attempt) {
-  var sln = attempt.solution;
-  console.log("invalidated. " + sln);
+  goals.onProofInvalidated(attempt)
 }
 
 Brute.prototype.onPtStartProcessing = function() {

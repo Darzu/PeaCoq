@@ -6,7 +6,6 @@ var zwsp = "\u200B";
 var namesPossiblyInScope = [];
 var focusedOnEditor = true;
 var activeProofTrees = [];
-var goals = new Goals();
 
 var unicodeList = [
     ("forall", "∀"),
