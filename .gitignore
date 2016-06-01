@@ -8,3 +8,4 @@ plugin/
 *.svg
 .stack-work/
 .cabal-sandbox
+cabal.sandbox.config
