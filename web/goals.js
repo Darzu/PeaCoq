@@ -16,7 +16,7 @@ Goals.prototype.update = function(response) {
 //        $("#focusedGoals").append(g);
 //    }
 
-    console.log("unfocusedGoals " + response.rGoals.unfocused.length);
+    //console.log("unfocusedGoals " + response.rGoals.unfocused.length);
 
     response.rGoals.focused.forEach(function(g) {
         self.focusedGoals.push(showTermText(extractGoal(g.gGoal)));
@@ -30,7 +30,7 @@ Goals.prototype.update = function(response) {
     }
 
     response.rGoals.unfocused.forEach(function(g) {
-        console.log("they exist!");
+        //console.log("they exist!");
         self.unfocusedGoals.push(showTermText(extractGoal(g.gGoal)));
         $("#unfocusedGoals").append(showTermText(extractGoal(g.gGoal)) + "\n")
     }); 
