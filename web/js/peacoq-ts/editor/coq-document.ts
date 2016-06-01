@@ -58,6 +58,10 @@ export class CoqDocument implements ICoqDocument {
   //   return _(this.editsProcessed).map(function(e) { return e.getStopPosition(); }).value();
   // }
 
+  getLastEdit(): Maybe<IEdit<IEditStage>> {
+    return this.edits.getLast();
+  }
+
   getLastEditStop(): AceAjax.Position {
     return this.edits.getLast().caseOf({
       nothing: () => this.beginAnchor.getPosition(),
@@ -171,6 +175,10 @@ export class CoqDocument implements ICoqDocument {
 
   removeEditAndFollowingOnes(e: IEdit<any>): void {
     this.edits.removeEditAndFollowingOnes(e);
+  }
+
+  removeFollowingEdits(e: IEdit<any>): void {
+    this.edits.removeFollowingEdits(e);
   }
 
   // removeEdits(

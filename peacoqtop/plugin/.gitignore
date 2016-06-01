@@ -1,0 +1,11 @@
+*.aux
+Makefile.coq
+Makefile.coq.bak
+*.cmo
+*.cmi
+*.cmx
+*.cmxs
+*.d
+*.glob
+*.o
+*.vo

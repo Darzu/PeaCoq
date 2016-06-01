@@ -1,40 +1,54 @@
+# Temporarily disabled docker
 # https://www.refme.com/blog/2015/11/05/haskell-travis-heroku-and-docker-oh-my/
 
+dist:     trusty
 language: sh
+sudo:     false
 
-services:
-  - docker
+matrix:
+  include:
+    - os: linux
+    - os: osx
 
-sudo: required
+addons:
+  apt:
+    sources:
+      - hvr-ghc
+    packages:
+      - cabal-install-1.24
+      - ghc-7.10.3
+      - alex
+      - happy
+      - ocaml
+      - camlp5
+      - nodejs
 
 env:
   global:
-    - CABALVER=1.22
-    - GHCVER=7.10.2
-    - ALEXVER=3.1.4
-    - HAPPYVER=1.19.5
+    - COQVER=8.5pl1
 
 cache:
   directories:
-    - '.cabal-sandbox'
+    - $HOME/.cabal
+    - $HOME/.ghc
+    - $TRAVIS_BUILD_DIR/coq-$COQVER
+    - $TRAVIS_BUILD_DIR/peacoqtop/dist
+    - $TRAVIS_BUILD_DIR/peacoq-server/dist
+    - $TRAVIS_BUILD_DIR/web/js/peacoq-ts/typings
+    - $TRAVIS_BUILD_DIR/web/node_modules
 
 before_install:
-  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
-  - travis_retry sudo apt-get update
-  - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
-  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
-  - travis_retry sudo apt-get install alex-$ALEXVER
-  - export PATH=/opt/alex/$ALEXVER/bin:$PATH
-  - travis_retry sudo apt-get install happy-$HAPPYVER
-  - export PATH=/opt/happy/$HAPPYVER/bin:$PATH
-  - cabal update
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then ./scripts/before-install-linux.sh; fi
+  - if [ "$TRAVIS_OS_NAME" = "osx" ];   then ./scripts/before-install-osx.sh; fi
 
 install:
-  - cabal sandbox init
-  - travis_retry cabal install --only-dependencies --enable-tests
-  - cabal configure --enable-tests
-  - cabal build
+  - export PATH=/opt/cabal/1.24/bin:$PATH
+  - export PATH=/opt/ghc/7.10.3/bin:$PATH
+  - export PATH=$TRAVIS_BUILD_DIR/coq-$COQVER/bin:$PATH
+  - cabal update
+  # building src/Handlers.hs takes more than 10 minutes on Travis :(
+  - travis_wait 40 ./setup.sh
 
 script:
-  - cabal test
-
+  - (cd peacoqtop && ./dist/build/peacoqtop-test/peacoqtop-test)
+  - (cd peacoq-server && ./dist/build/peacoq-server-test/peacoq-server-test)

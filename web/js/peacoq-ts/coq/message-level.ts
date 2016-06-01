@@ -1,52 +1,34 @@
 import * as Global from "./../global-variables";
 
-export default MessageLevel;
-
-export abstract class MessageLevel {
-  abstract getAssociatedTab(): IEditorTab;
-  abstract toString(): string;
-}
-
-export class Debug extends MessageLevel {
+export class Debug implements IMessageLevel  {
   constructor(
     public debug: string
-  ) {
-    super();
-  }
-  getAssociatedTab() { return Global.tabs.debug; }
+  ) { }
   toString() { return "Debug(" + this.debug + ")"; }
 }
 
-export class MyError extends MessageLevel {
-  constructor() { super(); }
-  getAssociatedTab() { return Global.tabs.errors; }
+export class Error implements IMessageLevel {
   toString() { return "Error"; }
 }
 
-export class Info extends MessageLevel {
-  constructor() { super(); }
-  getAssociatedTab() { return Global.tabs.infos; }
+export class Info implements IMessageLevel {
   toString() { return "Info"; }
 }
 
-export class Notice extends MessageLevel {
-  constructor() { super(); }
-  getAssociatedTab() { return Global.tabs.notices; }
+export class Notice implements IMessageLevel {
   toString() { return "Notice"; }
 }
 
-export class Warning extends MessageLevel {
-  constructor() { super(); }
-  getAssociatedTab() { return Global.tabs.warnings; }
+export class Warning implements IMessageLevel {
   toString() { return "Warning"; }
 }
 
-export function mkMessageLevel(m): MessageLevel {
+export function mkMessageLevel(m): IMessageLevel {
   switch (m.tag) {
     case "Debug":
       return new Debug(m.contents);
     case "Error":
-      return new MyError();
+      return new Error();
     case "Info":
       return new Info();
     case "Notice":
@@ -54,6 +36,6 @@ export function mkMessageLevel(m): MessageLevel {
     case "Warning":
       return new Warning();
     default:
-      throw ("Unknown message level: " + m.tag);
+      throw `Unknown message level: ${m.tag}`;
   };
 }

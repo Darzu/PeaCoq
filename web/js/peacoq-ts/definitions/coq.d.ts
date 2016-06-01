@@ -41,10 +41,11 @@ interface IGoals<T> {
 interface IMessage {
   content: string;
   level: IMessageLevel;
-  display(): void;
+  // display(): void;
 }
 
-interface IMessageLevel { }
+interface IMessageLevel {
+}
 
 interface IStatus {
   // statusPath: string[];
@@ -53,6 +54,13 @@ interface IStatus {
   // statusProofNum: number;
 }
 
+interface ErrorLocation {
+  startPos: number;
+  stopPos: number;
+}
+
 interface IValueFail {
+  location: Maybe<ErrorLocation>;
+  message: string;
   stateId: number;
 }

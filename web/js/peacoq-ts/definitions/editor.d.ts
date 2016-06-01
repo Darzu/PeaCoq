@@ -4,14 +4,6 @@ interface ITabs {
   background: IEditorTab;
   shelved: IEditorTab;
   givenUp: IEditorTab;
-  notices: IEditorTab;
-  warnings: IEditorTab;
-  errors: IEditorTab;
-  infos: IEditorTab;
-  debug: IEditorTab;
-  failures: IEditorTab;
-  // feedback: IEditorTab;
-  jobs: IEditorTab;
 }
 
 /* TODO: maybe fuse the parts of the toolbar and shortcuts that overlap? */
@@ -38,6 +30,7 @@ interface ShortcutsStreams {
 
 interface IEditArray {
   editChangedStage$: Rx.Observable<IEdit<IEditStage>>;
+  editProcessed$: Rx.Observable<IEdit<IProcessed>>;
   editCreated$: Rx.Observable<IEdit<IEditStage>>;
   editRemoved$: Rx.Observable<IEdit<IEditStage>>;
   createEdit(
@@ -53,6 +46,7 @@ interface IEditArray {
   remove(r: IEdit<any>): void;
   removeAll(): void;
   removeEditAndFollowingOnes(e: IEdit<any>): void;
+  removeFollowingEdits(e: IEdit<any>): void;
   // replace(id: number, e: IEdit<any>): void;
 }
 
@@ -67,13 +61,15 @@ interface ICoqDocument {
   getEditsBeingProcessed(): IEdit<IBeingProcessed>[];
   getEditsToProcess(): IEdit<IToProcess>[];
   getProcessedEdits(): IEdit<IProcessed>[];
+  getLastEdit(): Maybe<IEdit<IEditStage>>;
   getLastEditStop(): AceAjax.Position;
   markError(range: AceAjax.Range): void;
   moveCursorToPositionAndCenter(pos: AceAjax.Position): void;
   movePositionRight(pos: AceAjax.Position, n: number): AceAjax.Position;
   removeAllEdits(): void;
-  removeEdit(e: IEdit<any>): void;
-  removeEditAndFollowingOnes(e: IEdit<any>): void;
+  removeEdit(e: IEdit<IEditStage>): void;
+  removeEditAndFollowingOnes(e: IEdit<IEditStage>): void;
+  removeFollowingEdits(e: IEdit<IEditStage>): void;
   resetEditor(s: string): void;
 }
 
@@ -145,4 +141,10 @@ interface IEditorTab extends ITab {
   resize(): void;
   setTheme(s: string): void;
   setValue(s: string, switchToTab: boolean);
+}
+
+interface IEditorError {
+  error: IValueFail;
+  failedEdit: IEdit<IBeingProcessed>;
+  range: Maybe<AceAjax.Range>;
 }

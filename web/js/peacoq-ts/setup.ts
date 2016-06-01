@@ -2,13 +2,17 @@ import * as FeedbackContent from "./coq/feedback-content";
 
 import * as Coq85 from "./editor/coq85";
 import { CoqDocument } from "./editor/coq-document";
+import { CoqtopPanel } from "./editor/coqtop-panel";
 import * as Edit from "./editor/edit";
 import { clearEdit, displayEdit, setupEditor } from "./editor/editor";
 import { EditorTab } from "./editor/editor-tab";
 import { isBefore } from "./editor/editor-utils";
+import { pimpMyError } from "./editor/error";
 import { setupKeybindings } from "./editor/keybindings";
 import { setupProgressBar } from "./editor/progress-bar";
 import { Tab } from "./editor/tab";
+import { setupTextCursorPositionUpdate } from "./editor/text-cursor-position";
+import { setupUserInteractionForwardGoto } from "./editor/user-interaction-forward-goto";
 // // TODO: toolbar.ts should setup{Load,Save}File upon setupToolbar
 // // TODO: unless it can't because of keybindings?
 import { pickFile, saveFile, setupLoadFile, setupToolbar, setupSaveFile } from "./editor/toolbar";
@@ -111,7 +115,7 @@ $(document).ready(() => {
     name: rightLayoutName,
     panels: [
       { type: "main", size: "50%", resizable: true, tabs: { tabs: [], } },
-      { type: "bottom", size: "50%", resizable: true, tabs: { tabs: [], } },
+      { type: "bottom", size: "50%", resizable: true, content: $("<div>", { id: "bottom-right" }) },
     ],
   });
 
@@ -159,18 +163,6 @@ $(document).ready(() => {
       tabs.givenUp = new EditorTab("givenup", "Given up", rightLayoutName, "main");
 
       contextTabs.click("pretty");
-
-      // bottom panes
-      tabs.notices = new EditorTab("notices", "Notices", rightLayoutName, "bottom");
-      tabs.warnings = new EditorTab("warnings", "Warnings", rightLayoutName, "bottom");
-      tabs.errors = new EditorTab("errors", "Errors", rightLayoutName, "bottom");
-      tabs.infos = new EditorTab("infos", "Infos", rightLayoutName, "bottom");
-      tabs.debug = new EditorTab("debug", "Debug", rightLayoutName, "bottom");
-      tabs.failures = new EditorTab("failures", "Failures", rightLayoutName, "bottom");
-      // tabs.feedback = new EditorTab("feedback", "Feedback", rightLayoutName, "bottom");
-      tabs.jobs = new EditorTab("jobs", "Jobs", rightLayoutName, "bottom");
-
-      coqtopTabs.click("notices");
 
       Global.setTabs(tabs);
 
@@ -244,11 +236,21 @@ $(document).ready(() => {
   Theme.afterChange$.subscribe(() => { rightLayout.refresh(); });
   Theme.afterChange$.subscribe(() => { bottomLayout.refresh(); });
 
-  const nextSubject = new Rx.Subject<{}>();
+  const nextSubject = new Rx.ReplaySubject(1);
   userActionStreams.next$.subscribe(() => nextSubject.onNext({}));
 
   const editsToProcessStream =
     Coq85.onNextReactive(Global.coqDocument, nextSubject.asObservable());
+
+  const previousEditToReach$: Rx.Observable<IEdit<IProcessed>> =
+    userActionStreams.prev$
+      .flatMap(() => listFromMaybe(Global.coqDocument.getLastEdit()))
+      .flatMap(e => listFromMaybe(e.previousEdit))
+      .filter(e => e.stage instanceof Edit.Processed);
+
+  const editAtBecausePrev$ =
+    previousEditToReach$
+      .map(e => new CoqtopInput.EditAt(e.stage.stateId));
 
   /*
   Will have just(pos) when we are trying to reach some position, and
@@ -256,42 +258,13 @@ $(document).ready(() => {
   */
   const forwardGoToSubject = new Rx.Subject<Maybe<AceAjax.Position>>();
   forwardGoTo$.subscribe(o => forwardGoToSubject.onNext(just(o.destinationPos)));
-  const nextBecauseGoTo$ = Rx.Observable
-    .combineLatest(
-    forwardGoToSubject.asObservable(),
-    // TODO: this won't work on reload...
-    Global.coqDocument.edits.editCreated$
-      .map(() => Global.coqDocument.getLastEditStop())
-      .startWith({ row: 0, column: 0 }) // otherwise it doesn't fire before first change
-    )
-    .flatMap(([m, eStopPos]) => {
-      return m.caseOf({
-        nothing: () => [],
-        just: destinationPos => {
-          // we need to continue if both:
-          // 1. eStopPos < destinationPos
-          // 2. the range [eStopPos, destinationPos] contains some text
-          const cond1 = isBefore(Strictly.Yes, eStopPos, destinationPos);
-          const range = AceAjax.Range.fromPoints(eStopPos, destinationPos);
-          const text = Global.coqDocument.session.getDocument().getTextRange(range);
-          const cond2 = CoqStringUtils.coqTrimLeft(text) !== "";
-          if (cond1 && cond2) {
-            // need another next
-            return [{}];
-          } else {
-            // don't need another next
-            forwardGoToSubject.onNext(nothing());
-            return [];
-          }
-        },
-      });
-    });
-  nextBecauseGoTo$.subscribe(() => nextSubject.onNext({}));
 
   //editsToProcessStream.subscribe(e => Global.coqDocument.pushEdit(e));
   //editsToProcessStream.subscribe(e => Global.coqDocument.moveCursorToPositionAndCenter(e.getStopPosition()));
   const addsToProcessStream = Coq85.processEditsReactive(editsToProcessStream);
 
+  // TODO: I don't like how I pass queriesObserver to each edit stage, I should
+  // improve on this design
   const queriesSubject = new Rx.Subject<ICoqtopInput>();
   const queriesObserver = queriesSubject.asObserver();
   const queries$ = queriesSubject.asObservable();
@@ -308,7 +281,18 @@ $(document).ready(() => {
     editAtBecauseEditorChange,
     editAtFromBackwardGoTo$,
     queries$,
+    editAtBecausePrev$,
   ]);
+
+  const nextBecauseGoTo$ = setupUserInteractionForwardGoto(
+    forwardGoTo$.map(goto => goto.destinationPos),
+    Global.coqDocument.edits.editCreated$,
+    coqtopOutput$s.error$
+  );
+
+  nextBecauseGoTo$
+    .delay(0) // this is needed to set up the feedback properly
+    .subscribe(() => nextSubject.onNext({}));
 
   coqtopOutput$s.feedback$
     .filter(f => f.feedbackContent instanceof FeedbackContent.Processed)
@@ -319,13 +303,13 @@ $(document).ready(() => {
         const edit = _(editsBeingProcessed).find(e => e.stage.stateId === stateId);
         if (edit) {
           const newStage = new Edit.Processed(edit.stage, queriesObserver);
-          const newEdit = edit.setStage(newStage);
-          if (
-            Global.coqDocument.getEditsToProcess().length === 0
-            && Global.coqDocument.getEditsBeingProcessed().length === 0
-          ) {
-            Global.coqDocument.moveCursorToPositionAndCenter(newEdit.stopPosition);
-          }
+          edit.setStage(newStage);
+          // if (
+          //   Global.coqDocument.getEditsToProcess().length === 0
+          //   && Global.coqDocument.getEditsBeingProcessed().length === 0
+          // ) {
+          //   Global.coqDocument.moveCursorToPositionAndCenter(edit.stopPosition);
+          // }
         }
       } else {
         debugger; // not sure this ever happens
@@ -363,18 +347,38 @@ $(document).ready(() => {
   //     }
   //   });
 
-  coqtopOutput$s.error$
-    .subscribe(e => {
-      const failedEdit = Global.coqDocument.getEditsBeingProcessed()[0];
-      Global.coqDocument.removeEditAndFollowingOnes(failedEdit);
-      Global.tabs.errors.setValue(e.message, true);
-      e.location.fmap(loc => {
-        const errorStart = Global.coqDocument.movePositionRight(failedEdit.startPosition, loc.startPos);
-        const errorStop = Global.coqDocument.movePositionRight(failedEdit.startPosition, loc.stopPos);
-        const errorRange = new AceAjax.Range(errorStart.row, errorStart.column, errorStop.row, errorStop.column);
-        Global.coqDocument.markError(errorRange);
-      });
-    });
+  const editorError$: Rx.Observable<IEditorError>
+    = coqtopOutput$s.error$.map(pimpMyError).share();
+
+  editorError$.subscribe(ee =>
+    Global.coqDocument.removeEditAndFollowingOnes(ee.failedEdit)
+  );
+
+  new CoqtopPanel(
+    $(w2ui[rightLayoutName].get("bottom").content),
+    coqtopOutput$s.error$,
+    coqtopOutput$s.message$
+  );
+
+  editorError$.subscribe(ee => ee.range.fmap(range =>
+    Global.coqDocument.markError(range)
+  ));
+
+  editorError$.subscribe(ee =>
+    // so, apparently we won't receive feedbacks for the edits before this one
+    // so we need to mark them all processed...
+    _(Global.coqDocument.getEditsBeingProcessed())
+      // ASSUMPTION: state IDs are assigned monotonically
+      .filter(e => e.stage.stateId < ee.error.stateId)
+      .each(e => e.setStage(new Edit.Processed(e.stage, queriesObserver)))
+  );
+
+  setupTextCursorPositionUpdate(
+    Global.coqDocument.edits.editProcessed$,
+    editorError$,
+    previousEditToReach$,
+    editsToProcessStream
+  );
 
   coqtopOutput$s.response$
     .filter(r => r.input instanceof CoqtopInput.EditAt)
@@ -610,6 +614,7 @@ interface UserActionStreams {
   goTo$: Rx.Observable<{}>,
   loadedFile$: Rx.Observable<{}>,
   next$: Rx.Observable<{}>,
+  prev$: Rx.Observable<{}>,
 }
 
 function setupUserActions(
@@ -647,6 +652,7 @@ function setupUserActions(
     goTo$: goTo$,
     loadedFile$: loadedFilesStream,
     next$: next$,
+    prev$: prev$,
   };
 }
 
@@ -661,4 +667,28 @@ function minPos(pos1: AceAjax.Position, pos2: AceAjax.Position): AceAjax.Positio
     return pos1;
   }
   return pos2;
+}
+
+function mapCursorPositionToContext(
+  pos$: Rx.Observable<AceAjax.Position>
+): Rx.Observable<PeaCoqContext> {
+
+  /* nothing() if no edit to display, just(edit) if there is one */
+  const editToBeDisplayed$: Rx.Observable<Maybe<IEdit<IEditStage>>> =
+    pos$
+      .map(pos => {
+        // we want to display the last edit whose stopPos is before `pos`
+        const edit = _(Global.coqDocument.getAllEdits())
+          .findLast(s => isBefore(Strictly.No, s.stopPosition, pos));
+        return edit ? just(edit) : nothing();
+      })
+      .distinctUntilChanged();
+  if (DebugFlags.editToBeDisplayed) { subscribeAndLog(editToBeDisplayed$); }
+
+  return editToBeDisplayed$
+    .flatMapLatest(edit => edit.caseOf({
+      nothing: () => Promise.resolve(emptyContext),
+      just: e => e.getProcessedStage().then(s => s.getContext()),
+    }));
+
 }
