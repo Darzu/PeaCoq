@@ -1253,10 +1253,6 @@ function editorOnResponse(requestType, request, response) {
 
             goals.update(response);
 
-            //HACK
-            if (brute)
-                brute.onGoodQuery(request, response);
-
             break;
 
         case 'Fail':
