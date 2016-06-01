@@ -29,6 +29,16 @@ function processAsyncRequests() {
     }
 
     var request = asyncRequests.shift();
+
+    //skip cancelled requests
+    while (request.isCancelled
+           && request.isCancelled()) {
+        if (asyncRequests.length > 0)
+            request = asyncRequests.shift();
+        else
+            return;
+    }
+
     var r = request.url;
     var q = request.query;
     var h = request.callback;
@@ -93,17 +103,20 @@ function processAsyncRequests() {
 /*
  *  @return {Promise}
  */
-function asyncRequest(r, q) {
+function asyncRequest(r, q, isCancelled) {
     //console.log("ASYNCREQUEST", r, q);
     // so far, no need for activeProofTree.onRequest
     return new Promise(function(onFulfilled, onRejected) {
 
         //console.log("QUEUEING", r, q);
-        asyncRequests.push({
+        var req = {
             "url": r,
             "query": q,
             "callback": onFulfilled,
-        });
+            "isCancelled": isCancelled,
+        };
+
+        asyncRequests.push(req);
 
         processAsyncRequests();
     });
@@ -113,7 +126,9 @@ function asyncRequest(r, q) {
  *  @return {Promise}
  */
 function asyncQuery(q)        { return asyncRequest('query', q); }
-function asyncQueryAndUndo(q) { return asyncRequest('queryundo', q); }
+function asyncQueryAndUndo(q, isCancelled) { 
+    return asyncRequest('queryundo', q, isCancelled); }
+    //TODO: thread "isCancelled" to all other requests
 function asyncUndo()          { return asyncRequest('undo', ''); }
 function asyncRevision()      { return asyncRequest('revision', ''); }
 function asyncRewind(delta) {

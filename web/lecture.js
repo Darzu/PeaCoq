@@ -427,12 +427,13 @@ function undoCallback(fromUser, undone, response) {
             }
         }
         response.rResponse.contents[0] = ""; // don't show the user the steps number
-        //HACK
-        if (brute)
-            brute.onUndoCallback(response)
         break;
     };
     updateCoqtopPane(goingUp, response);
+
+    //HACK
+    if (window.brute)
+        brute.onUndoCallback(response);
 }
 
 var safeDelimiters = [' ', '\n'];
@@ -1180,7 +1181,7 @@ function getVernacName(s) {
 }
 
 // TODO: collect names possibly in scope here
-function editorOnResponse(requestType, request, response) {
+function editorOnResponse(requestType, request, response) {  
     switch (requestType) {
     case 'query':
         switch(response.rResponse.tag) {
@@ -1247,11 +1248,6 @@ function editorOnResponse(requestType, request, response) {
                     createProofTree(response);
                 }
             }
-
-            //HACK
-            if (brute)
-                brute.onGoodQuery(request, response);
-
             break;
 
         case 'Fail':
@@ -1275,6 +1271,10 @@ function editorOnResponse(requestType, request, response) {
         break;
 
     }
+
+    //HACK
+    if (window.brute)
+        brute.onQueryResponse(response);
 }
 
 /*
