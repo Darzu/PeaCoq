@@ -53,6 +53,14 @@ if (!"".hashCode) {
   };
 }
 
+function assert(cond, msg) {
+  if (!cond) {
+    if (msg)
+      console.error(msg)
+    debugger;
+  }
+}
+
 function getHypStrs(goal) {
   return _.map(goal.gHyps, h => PT.showHypothesisText(extractHypothesis(h)))
 }
@@ -107,7 +115,9 @@ BruteAttempt.prototype.hasSolution = function() {
 BruteAttempt.prototype.update = function() {
   var self = this;
   var queryGoalNum = this.goalNum;
-  var isQueryValid = () => self.isValid && self.goalNum === queryGoalNum && !self.hasSolution();
+  var isQueryValid = () => {
+    return self.isValid && self.goalNum === queryGoalNum && !self.hasSolution()
+  }
 
   _.forEach(solveTacs, tac => {
     var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
@@ -144,22 +154,23 @@ Brute.prototype.update = function(response) {
   //Recompute context hashes
   this.curContextHashes = _.map(goals, getContextHash);
 
-  if (goals.length === 0)
-    return;
-
   //Update validity of current atttempts
   _.forEach(this.curAttempts, a => a.updateValidity());
+
+  if (goals.length === 0)
+    return;
 
   //Keep valid attempts
   this.curAttempts = _.filter(this.curAttempts, a => a.isValid);
 
   //Start new attempts
-  for (var goalIdx in goals) {
+  for (var goalIdx = 0; goalIdx < goals.length; goalIdx++) {
     var goalNum = goalIdx + 1;
     var hasAttempt = _.any(this.curAttempts, a => a.goalNum == goalNum);
     if (!hasAttempt) {
       var goal = goals[goalIdx];
       var hash = this.curContextHashes[goalIdx];
+      assert(!_.any(this.curAttempts, a => a.contextHash === hash));
       var attempt = new BruteAttempt(goal, goalNum, hash);
       this.curAttempts.push(attempt);
       attempt.update();
