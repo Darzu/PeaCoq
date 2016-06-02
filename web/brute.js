@@ -1,5 +1,7 @@
 "use strict";
 
+var MAX_DEPTH = 3;
+
 //TODO:
 // - add priorities to async requests
 //   - and/or: wait until proof process is idle before trying proofs
@@ -68,7 +70,7 @@ function getContextHash(goal) {
   return getContextStr(goal).hashCode();
 }
 
-function BruteAttempt(goal, goalNum, contextHash) {
+function BruteAttempt(goal, goalNum, contextHash, maxDepth) {
   //TODO: can we get away with tracking less state?
   this.goal = goal;
   this.goalNum = goalNum;
@@ -78,7 +80,7 @@ function BruteAttempt(goal, goalNum, contextHash) {
   this.isValid = true;
   this.solution = null;
   this.depth = 0;
-  this.maxDepth = 3;
+  this.maxDepth = maxDepth;
   this.partialSolution = [];
 }
 BruteAttempt.prototype.updateValidity = function() {
@@ -113,12 +115,8 @@ BruteAttempt.prototype.run = function() {
   if (!this.isValid)
     return;
  
-  var onSolveTacSucc = (tactic, query, response) => {   
-    //TODO this code is partially duplicated 
-    var queryPrefix = self.goalNum > 1 ? self.goalNum + ": " : "";
-    var prevQuery = _.map(self.partialSolution, t => t + ". ").join("");
-    var slnQuery = queryPrefix + prevQuery + tactic + ".";
-    self.solution = slnQuery;
+  var onSolveTacSucc = (tactic, query, response) => { 
+    self.solution = query;
     brute.onProofFound(self);
   }
   var onAllSolveTried = () => {
@@ -136,7 +134,11 @@ BruteAttempt.prototype.run = function() {
   }
   if (this.partialSolution.length < this.depth) {
     var tactics = getAdditiveTactics(self.goal);
-    var mkTacQuery = (t) => t + "; []";
+    var mkTacQuery = (t) => {
+      //This ensures the query makes progress, doesn't just add duplicates,
+      //  and doesn't introduce new goals
+      return "repeat clear_dup; progress ("+t+"; repeat clear_dup); []"
+    }
     self.tryTactics(tactics, onAddTacSucc, onAllAddTried, true, mkTacQuery);
   } else {
     var tactics = getSolveTactics(self.goal);
@@ -163,7 +165,7 @@ BruteAttempt.prototype.tryTactics = function(tactics, onTacSuccess, onAllTried, 
   var promises = []
 
   _.forEach(tactics, tac => {  
-    //TODO this code is partially duplicated
+    //TODO extract this
     var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
     var prevQuery = _.map(this.partialSolution, t => t + "; ").join("");
     var query = queryPrefix + prevQuery + mkTacQuery(tac) + ".";
@@ -222,7 +224,7 @@ Brute.prototype.update = function(response) {
       var goal = goals[goalIdx];
       var hash = this.curContextHashes[goalIdx];
       assert(!_.any(this.curAttempts, a => a.contextHash === hash));
-      var attempt = new BruteAttempt(goal, goalNum, hash);
+      var attempt = new BruteAttempt(goal, goalNum, hash, MAX_DEPTH);
       this.curAttempts.push(attempt);
       attempt.run();
     }

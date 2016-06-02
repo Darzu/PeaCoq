@@ -14,6 +14,11 @@ Ltac eapply_new Hlem H :=
   name H HNEW; eapply Hlem in HNEW.
 Ltac inv H := inversion H; clear H; subst.
 
+Ltac clear_dup :=
+  match goal with
+    |[H1 : ?A, H2: ?A |- _] => clear H2
+  end.
+
 (* break/destruct helpers *)
 Ltac break_if_hyp :=
   match goal with
@@ -122,14 +127,16 @@ Proof.
   omega.
 Qed.
 
+
+
 Lemma foobar:
   forall a b c d,
     my_rel a b c ->
     a < (if c then b else d) /\ c <> false.
 Proof.
   intros.
-  split.
-  inversion H.
+  split.  
+  inversion H.  
   rewrite H1.  
   omega.
   exploit my_lem1; eauto; intro.
