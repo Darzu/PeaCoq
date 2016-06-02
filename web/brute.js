@@ -170,7 +170,7 @@ BruteAttempt.prototype.tryTactics = function(tactics, onTacSuccess, onAllTried, 
     var prevQuery = _.map(this.partialSolution, t => t + "; ").join("");
     var query = queryPrefix + prevQuery + mkTacQuery(tac) + ".";
 
-    var promise = asyncQueryAndUndo(query, () => !isQueryValid())
+    var promise = asyncQueryAndUndo(query, () => !isQueryValid(), true)
       .then(delayPromise(0))
       .then(function(response) {
         if (isGood(response)) {
@@ -356,50 +356,4 @@ function getAdditiveTactics(goal) {
   //       result.push(fn(nm, h)))));
 
   return result;
-}
-
-//----- SCRATCH CODE ------
-Brute.prototype.dummyFn = function() {
-  var self = this;
-  var pt = activeProofTree;
-
-  var names = namesPossiblyInScope.reverse();
-  var goalString = pt.curGoal().goalString;
-
-  var curGoal = (isGoal(pt.curNode)) ? pt.curNode : pt.curNode.parent;
-  var hypsFull = _(curGoal.hyps).clone().reverse();
-  var hyps = _(hypsFull).map(function(h) { return h.hName; });
-  var curNames = _(hyps).union(namesPossiblyInScope.reverse());
-
-  var ts_all = masterTactics(pt);
-  var ts_nodes = brute.pt.curNode.getTactics();
-  var ts_strs = _.map(ts_nodes, "tactic");
-
-  var isIdle = !_.any(brute.pt.tacticsWorklist);
-
-  //TODO steer based on goal
-  //goalIsForall
-  //goalIsExists
-  //goalIsConjunction
-  //goalIsDisjunction
-  //goalIsReflexive
-  //brute.pt.curNode.goalString
-  //TODO keep ghost proof tree in the background (?)
-
-  var t = "tauto.";
-
-  $("#loading").css("display", "none");
-  $("#loading").css("display", "");
-  $("#loading-text").text(nbsp + nbsp + "Trying " + t);
-
-  return asyncQueryAndUndo(t)
-      .then(delayPromise(0))
-      .then(function(response) {
-          if (isGood(response)) {
-            //console.log("good response for: " + t);
-          } else {
-            //TODO
-          }
-      })
-      .catch(outputError);
 }

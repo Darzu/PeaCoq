@@ -1,5 +1,6 @@
 var processingAsync = false; // TODO: scope this
 var asyncRequests = [];
+var lowPriorityAsyncRequests = [];
 
 function delayPromise(time) {
     return function(result) {
@@ -23,18 +24,30 @@ function processAsyncRequests() {
         return;
     }
 
-    if (_(asyncRequests).isEmpty()) {
+    var hasRequests = () => {
+        return asyncRequests.length > 0 || lowPriorityAsyncRequests.length > 0;
+    }
+
+    if (!hasRequests()) {
         //console.log("NO MORE REQUESTS TO PROCESS");
         return;
     }
 
-    var request = asyncRequests.shift();
+    var dequeue = () => {
+        if (asyncRequests.length > 0) {
+            return asyncRequests.shift();
+        } else {
+            return lowPriorityAsyncRequests.shift();
+        }
+    }
+
+    var request = dequeue();
 
     //skip cancelled requests
-    while (request.isCancelled
-           && request.isCancelled()) {
-        if (asyncRequests.length > 0)
-            request = asyncRequests.shift();
+
+    while (request.isCancelled && request.isCancelled()) {
+        if (hasRequests())
+            request = dequeue()
         else
             return;
     }
@@ -103,20 +116,27 @@ function processAsyncRequests() {
 /*
  *  @return {Promise}
  */
-function asyncRequest(r, q, isCancelled) {
+function asyncRequest(r, q, isCancelled, lowPriority) {
     //console.log("ASYNCREQUEST", r, q);
     // so far, no need for activeProofTree.onRequest
     return new Promise(function(onFulfilled, onRejected) {
+
+        var getFalse = () => false;
 
         //console.log("QUEUEING", r, q);
         var req = {
             "url": r,
             "query": q,
             "callback": onFulfilled,
-            "isCancelled": isCancelled,
+            "isCancelled": isCancelled || getFalse,
+            "lowPriority": lowPriority
         };
 
-        asyncRequests.push(req);
+        if (!lowPriority) {
+            asyncRequests.push(req);
+        } else {
+            lowPriorityAsyncRequests.push(req);
+        }
 
         processAsyncRequests();
     });
@@ -126,8 +146,8 @@ function asyncRequest(r, q, isCancelled) {
  *  @return {Promise}
  */
 function asyncQuery(q)        { return asyncRequest('query', q); }
-function asyncQueryAndUndo(q, isCancelled) { 
-    return asyncRequest('queryundo', q, isCancelled); }
+function asyncQueryAndUndo(q, isCancelled, lowPriority) { 
+    return asyncRequest('queryundo', q, isCancelled, lowPriority); }
     //TODO: thread "isCancelled" to all other requests
 function asyncUndo()          { return asyncRequest('undo', ''); }
 function asyncRevision()      { return asyncRequest('revision', ''); }
