@@ -77,6 +77,9 @@ function BruteAttempt(goal, goalNum, contextHash) {
   this.contextHash = contextHash;
   this.isValid = true;
   this.solution = null;
+  this.depth = 0;
+  this.maxDepth = 0;
+  this.additiveTacs = [];
 }
 BruteAttempt.prototype.updateValidity = function() {
   if (!this.isValid)
@@ -99,37 +102,176 @@ BruteAttempt.prototype.updateValidity = function() {
 }
 BruteAttempt.prototype.changeGoalNum = function(newGoalNum) {
   this.goalNum = newGoalNum;
-  this.update();
+  this.run();
 }
 BruteAttempt.prototype.hasSolution = function() {
   return !!this.solution;
 }
-BruteAttempt.prototype.update = function() {
+BruteAttempt.prototype.run = function() {
+  if (this.depth % 2 === 0) {
+    this.trySolve();
+  } else {
+    this.tryAddTac();
+  }
+}
+BruteAttempt.prototype.trySolve = function() {
+  var self = this;
+  var onQuerySuccess = (tactic, query, response) => {
+    self.solution = query;
+    brute.onProofFound(self);
+  }
+  var getTactics = () => {
+    return getSolveTactics(this.goal)
+  }
+  var mkQuery = (t) => {
+    return t;
+  }
+  var shouldStopEarly = () => {
+    return false;
+  }
+  self.tryAtDepth(getTactics, onQuerySuccess, mkQuery, shouldStopEarly);
+}
+BruteAttempt.prototype.tryAddTac = function() {
+  var self = this;
+  var found = false;
+  var onQuerySuccess = (tactic, query, response) => {
+    self.additiveTacs.push(tactic);
+    found = true;
+  }
+  var getTactics = () => {
+    return getAdditiveTactics(this.goal);
+  }
+  var mkQuery = (t) => {
+    return t + "; []";
+  }
+  var shouldStopEarly = () => {
+    return found;
+  }
+  self.tryAtDepth(getTactics, onQuerySuccess, mkQuery, shouldStopEarly);
+}
+BruteAttempt.prototype.tryAtDepth = function(getTactics, onQuerySuccess, mkQuery, shouldStopEarly) {
   var self = this;
   var queryGoalNum = this.goalNum;
+  var queryDepth = this.depth;
+  var anyCancelled = false;
+  var _isQueryValid = true;
+
+  var isDepthAttemptValid = () => {
+    return self.isValid 
+        && self.goalNum === queryGoalNum 
+        && self.depth === queryDepth
+        && !self.hasSolution();
+  }
+  var tryGoDeeper = () => {
+    if (self.depth < self.maxDepth) {
+      self.depth++;
+      self.run();
+    } else {
+      //console.log("Giving up at depth: "+self.depth);
+    }
+  }
+  var onAllQueriesFinished = () => {
+    if (isDepthAttemptValid()) {
+      tryGoDeeper()
+    } else {
+      //query failed      
+    }
+  }
   var isQueryValid = () => {
-    return self.isValid && self.goalNum === queryGoalNum && !self.hasSolution()
+    if (!_isQueryValid)
+      return false;
+    
+    //Recheck
+    _isQueryValid = isDepthAttemptValid() && !shouldStopEarly()
+
+    return _isQueryValid;
+  }
+  var onQueryCancelled = () => {
+    if (isDepthAttemptValid()) {
+      tryGoDeeper();
+    }
+  }
+  var shouldCancelQuery = () => {
+    var res = !isQueryValid();
+    if (res && !anyCancelled) {
+      anyCancelled = true;
+      onQueryCancelled();
+    }
+    return res;
   }
 
-  var tacs = getSolveTactics(self.goal);
+  var promises = []
+
+  var tacs = getTactics();
   _.forEach(tacs, tac => {
     var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
-    var query = queryPrefix + tac + ".";
+    var prevQuery = _.map(this.additiveTacs, t => t + ". ").join("");
+    var query = queryPrefix + prevQuery + mkQuery(tac) + ".";
 
-    //TODO track whether or not the depth finished
-    asyncQueryAndUndo(query, () => !isQueryValid)
+    var promise = asyncQueryAndUndo(query, shouldCancelQuery)
       .then(delayPromise(0))
       .then(function(response) {
-          if (isGood(response)) {
-            if (isQueryValid()) {      
-              self.solution = query;
-              brute.onProofFound(self);
-            }
+        if (isGood(response)) {
+          if (isQueryValid()) {  
+            onQuerySuccess(tac, query, response);
           }
+        }
       })
       .catch(outputError);
+
+    promises.push(promise)
   })  
+
+  Promise.all(promises)
+    .then(function() {
+      onAllQueriesFinished();
+    });
 }
+
+// BruteAttempt.prototype.tryAddTac = function() {
+//   var self = this;
+//   var queryGoalNum = this.goalNum;
+//   var queryDepth = this.depth;
+
+//   var isQueryValid = () => {
+//     return self.isValid 
+//       && self.goalNum === queryGoalNum 
+//       && self.depth === queryDepth
+//       && !self.hasSolution()
+//   }
+
+//   var promises = []
+
+//   var tacs = getAdditiveTactics(self.goal);
+//   _.forEach(tacs, tac => {
+//     var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
+//     var prevQuery = _.map(this.additiveTacs, t => t + ". ").join("");
+//     var query = queryPrefix + prevQuery + tac + ".";
+
+//     var promise = asyncQueryAndUndo(query, () => !isQueryValid)
+//       .then(delayPromise(0))
+//       .then(function(response) {
+//           if (isGood(response)) {
+//             if (isQueryValid()) {      
+//               self.solution = query;
+//               brute.onProofFound(self);
+//             }
+//           }
+//       })
+//       .catch(outputError);
+
+//     promises.push(promise)
+//   })  
+
+//   Promise.all(promises)
+//     .then(function() {
+//       if (isQueryValid()) {
+//         console.log("Failed at depth: "+self.depth);
+//       } else {
+//         //what to do?
+//       }
+//     });
+// }
 
 Brute.prototype.update = function(response) {
   var self = this;
@@ -166,7 +308,7 @@ Brute.prototype.update = function(response) {
       assert(!_.any(this.curAttempts, a => a.contextHash === hash));
       var attempt = new BruteAttempt(goal, goalNum, hash);
       this.curAttempts.push(attempt);
-      attempt.update();
+      attempt.run();
     }
   }
 }
@@ -235,7 +377,7 @@ function getAdditiveTactics(goal) {
     "break_if; try congruence",
     "break_match; try congruence",
     "break_let; try congruence",
-    "repeat (break_match; try congruence)",
+    "progress repeat (break_match; try congruence)",
     "break_and",
     "break_exists",
   ];
@@ -244,6 +386,7 @@ function getAdditiveTactics(goal) {
   ];
   var additivePerHyp = [  
     h => "inversion " + h,
+    //Too expensive for now
     // h => "inversion " + h + "; try discriminate",
     // h => "inversion " + h + "; try congruence",
   ];  
@@ -288,6 +431,7 @@ function getAdditiveTactics(goal) {
     hyps.forEach(h =>
       result.push(fn(h))));
 
+  //Too expensive for now
   // additivePerNmHyp.forEach(fn =>
   //   hypsAndLemmas.forEach(nm =>
   //     hyps.forEach(h =>
