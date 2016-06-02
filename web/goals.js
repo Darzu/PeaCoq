@@ -54,3 +54,14 @@ Goals.prototype.onProofInvalidated = function(attempt) {
   var goalNum = attempt.goalNum;
   console.log("invalidated. " + sln);
 }
+
+Goals.prototype.injectCode = function(code) {
+    doc.showHint(doc, function(cm) {
+        var completions = [code];
+        return {
+            list: completions,
+            from: doc.cm.getCursor(),
+            to: doc.cm.getCursor()
+        };}
+     , {});
+}
