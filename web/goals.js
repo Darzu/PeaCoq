@@ -10,30 +10,21 @@ $(document).ready(function() {
 
 Goals.prototype.update = function(response) {
     var self = this;
-    var goals = brute.curGoals;
+    var goals = window.brute.curGoals;
     var goalStrs = _.map(goals, getGoalStr);
-//    goalStrs.forEach(g) {
-//        $("#focusedGoals").append(g);
-//    }
 
-    //console.log("unfocusedGoals " + response.rGoals.unfocused.length);
+    $("#goalStrs").html("");
+    this.focusedGoals = [];
 
-    response.rGoals.focused.forEach(function(g) {
-        self.focusedGoals.push(showTermText(extractGoal(g.gGoal)));
-        $("#focusedGoals").append(getGoalStr(g));
-    });
-
-    if (response.rGoals.unfocused.length == 0) {
-        $("#unfocusedGoals").html("None");
-    } else {
-        $("#unfocusedGoals").html("");
+    if (goalStrs.length == 0) {
+        $("#goalStrs").append("None.");
     }
 
-    response.rGoals.unfocused.forEach(function(g) {
-        //console.log("they exist!");
-        self.unfocusedGoals.push(showTermText(extractGoal(g.gGoal)));
-        $("#unfocusedGoals").append(showTermText(extractGoal(g.gGoal)) + "\n")
-    }); 
+    goalStrs.forEach(function(g) {
+        self.focusedGoals.push(g);
+        $("#goalStrs").append(g + "<br />");
+    });
+
 };
 
 Goals.prototype.onProofFound = function(attempt) {
