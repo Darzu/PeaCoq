@@ -129,6 +129,9 @@ Lemma foobar:
 Proof.
   intros.
   split.
+  Focus 2.
+  
+  progress repeat (break_match; try congruence).
   inversion H.  
   rewrite H1.  
   omega.
