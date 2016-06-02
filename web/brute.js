@@ -9,20 +9,6 @@
 //    check validity of in-progress proofs
 //    create new attempts for goals not in progress
 
-var solveTacs = [
-  "assumption",
-  "reflexivity",
-  "contradiction",
-  "congruence",
-  "discriminate",
-  "tauto",
-  "omega",
-  "solve [auto]",
-  //NOTE: these two are dangerous b/c they can unify evars
-  "eassumption",
-  "solve [eauto]"
-];
-
 function Brute() {
   //console.log("Brute hook: [constr]");
 
@@ -61,11 +47,17 @@ function assert(cond, msg) {
   }
 }
 
+function getHyps(goal) {
+  return _.map(goal.gHyps, h => extractHypothesis(h))
+}
 function getHypStrs(goal) {
-  return _.map(goal.gHyps, h => PT.showHypothesisText(extractHypothesis(h)))
+  return _.map(getHyps(goal), h => PT.showHypothesisText(h))
+}
+function getGoalInfo(goal) {
+  return extractGoal(goal.gGoal);
 }
 function getGoalStr(goal) {
-  return showTermText(extractGoal(goal.gGoal))
+  return showTermText(getGoalInfo(goal))
 }
 function getContextStr(goal) {
   return getHypStrs(goal).join("\n") 
@@ -119,7 +111,8 @@ BruteAttempt.prototype.update = function() {
     return self.isValid && self.goalNum === queryGoalNum && !self.hasSolution()
   }
 
-  _.forEach(solveTacs, tac => {
+  var tacs = getSolveTactics(self.goal);
+  _.forEach(tacs, tac => {
     var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
     var query = queryPrefix + tac + ".";
 
@@ -204,6 +197,105 @@ Brute.prototype.onPtTacticsRefresh = function() {
   //console.log("Brute hook: onPtTacticsRefresh");
 }
 
+function getSolveTactics(goal) {
+  var solveTacs = [
+    "assumption",
+    "reflexivity",
+    "contradiction",
+    "congruence",
+    "discriminate",
+    "tauto",
+    "omega",
+    "solve [auto]",
+    //NOTE: these two are dangerous b/c they can unify evars
+    "eassumption",
+    "solve [eauto]"
+  ];
+  return solveTacs;
+}
+
+function getAdditiveTactics(goal) {
+  //TODO: try destructive tactics too
+  //TODO: support syntactic hueristics 
+  //      (e.g. don't try reflexivity if goal doesn't have equality)
+
+  var allHyps = _.map(getHyps(goal), h => h.hName);
+  var lemmas = _.difference(namesPossiblyInScope, 
+    //exclude bogus lemmas. The last thing in namesPossiblyInScope is the
+    //  lemma we are trying to prove.
+    ["modusponens", _.last(namesPossiblyInScope)]); 
+  var vars = _.filter(allHyps, h => isLowerCase(h[0]));
+  var hyps = _.filter(allHyps, h => !isLowerCase(h[0]));
+  var hypsAndLemmas = _.union(lemmas, hyps);
+
+  var additive = [
+    "break_if; try discriminate",
+    "break_match; try discriminate",
+    "break_let; try discriminate",
+    "break_if; try congruence",
+    "break_match; try congruence",
+    "break_let; try congruence",
+    "repeat (break_match; try congruence)",
+    "break_and",
+    "break_exists",
+  ];
+  var additivePerLemma = [
+    l => "exploit "+l+"; eauto; intro",
+  ];
+  var additivePerHyp = [  
+    h => "inversion " + h,
+    // h => "inversion " + h + "; try discriminate",
+    // h => "inversion " + h + "; try congruence",
+  ];  
+  var additivePerNmHyp = [
+    (h1, h2) => "copy "+h2+". apply " + h1 + " in " + h2,
+    (h1, h2) => "copy "+h2+". eapply " + h1 + " in " + h2,
+    (h1, h2) => "copy "+h2+". rewrite -> " + h1 + " in " + h2,
+    (h1, h2) => "copy "+h2+". rewrite <- " + h1 + " in " + h2,
+  ];
+
+  var destructive = [
+    "constructor",
+    "econstructor",
+    "eexists",
+    "simpl in *",
+    "left",
+    "right",
+    "split",
+  ];
+  var destructivePerHyp = [
+    h => "rewrite -> " + h,
+    h => "rewrite <- " + h,
+    h => "inv " + h,
+  ];
+  var destructivePerVar = [
+    v => "destruct " + v,
+  ];
+  var destructivePerNmHyp = [
+    (h1, h2) => "apply " + h1 + " in " + h2,
+    (h1, h2) => "eapply " + h1 + " in " + h2,
+    (h1, h2) => "rewrite -> " + h1 + " in " + h2,
+    (h1, h2) => "rewrite <- " + h1 + " in " + h2,
+  ];
+
+  var result = additive;  
+
+  additivePerLemma.forEach(fn => 
+    lemmas.forEach(l =>
+      result.push(fn(l))))
+
+  additivePerHyp.forEach(fn => 
+    hyps.forEach(h =>
+      result.push(fn(h))));
+
+  // additivePerNmHyp.forEach(fn =>
+  //   hypsAndLemmas.forEach(nm =>
+  //     hyps.forEach(h =>
+  //       result.push(fn(nm, h)))));
+
+  return result;
+}
+
 //----- SCRATCH CODE ------
 Brute.prototype.dummyFn = function() {
   var self = this;
@@ -213,9 +305,9 @@ Brute.prototype.dummyFn = function() {
   var goalString = pt.curGoal().goalString;
 
   var curGoal = (isGoal(pt.curNode)) ? pt.curNode : pt.curNode.parent;
-  var curHypsFull = _(curGoal.hyps).clone().reverse();
-  var curHyps = _(curHypsFull).map(function(h) { return h.hName; });
-  var curNames = _(curHyps).union(namesPossiblyInScope.reverse());
+  var hypsFull = _(curGoal.hyps).clone().reverse();
+  var hyps = _(hypsFull).map(function(h) { return h.hName; });
+  var curNames = _(hyps).union(namesPossiblyInScope.reverse());
 
   var ts_all = masterTactics(pt);
   var ts_nodes = brute.pt.curNode.getTactics();
