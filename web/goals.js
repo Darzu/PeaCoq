@@ -56,7 +56,7 @@ Goals.prototype.onProofInvalidated = function(attempt) {
 }
 
 Goals.prototype.injectCode = function(code) {
-    doc.showHint(doc, function(cm) {
+    CodeMirror.showHint(doc.cm, function(cm) {
         var completions = [code];
         return {
             list: completions,
