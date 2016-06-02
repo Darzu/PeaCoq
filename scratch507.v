@@ -3,10 +3,22 @@ Require Import Omega.
 Ltac name A B :=
   let Heq := fresh "H" in
   remember A as B eqn:Heq; clear Heq.
-
 Ltac copy H :=
   let x := fresh "H" in
   name H x.
+Ltac apply_new Hlem H :=
+  let HNEW := fresh "H" in
+  name H HNEW; apply Hlem in HNEW.
+Ltac eapply_new Hlem H :=
+  let HNEW := fresh "H" in
+  name H HNEW; eapply Hlem in HNEW.
+
+Ltac find_safe_inversion :=
+    match goal with
+      | [H: _ |- _] => inversion H
+    end; [].
+
+    
 
 Inductive my_rel a b c : Prop :=
 | mk_my_rel:
@@ -40,8 +52,8 @@ Lemma foobar:
     a < (if c then b else d) /\ c <> false.
 Proof.
   intros.
-  split.
-  copy H.  
+  split.   
+  copy H.
   apply my_lem1 in H0.
   subst.
   apply my_lem2 in H.
