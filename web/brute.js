@@ -172,7 +172,7 @@ Brute.prototype.update = function(response) {
 }
 Brute.prototype.onUndoCallback = function(fromUser, undone, response) {
   this.update(response);
-  goals.update(response);
+  //goals.update(response);
 }
 Brute.prototype.onQueryResponse = function(requestType, request, response) {
   if (requestType == "query") {
