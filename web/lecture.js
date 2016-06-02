@@ -434,7 +434,7 @@ function undoCallback(fromUser, undone, response) {
 
     //HACK
     if (window.brute)
-        brute.onUndoCallback(response);
+        brute.onUndoCallback(fromUser, undone, response);
 }
 
 var safeDelimiters = [' ', '\n'];
@@ -1278,7 +1278,7 @@ function editorOnResponse(requestType, request, response) {
 
     //HACK
     if (window.brute)
-        brute.onQueryResponse(response);
+        brute.onQueryResponse(requestType, request, response);
 }
 
 /*

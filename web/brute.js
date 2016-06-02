@@ -177,13 +177,15 @@ Brute.prototype.update = function(response) {
     }
   }
 }
-Brute.prototype.onUndoCallback = function(response) {
+Brute.prototype.onUndoCallback = function(fromUser, undone, response) {
   this.update(response);
   goals.update(response);
 }
-Brute.prototype.onQueryResponse = function(response) {
-  this.update(response);
-  goals.update(response);
+Brute.prototype.onQueryResponse = function(requestType, request, response) {
+  if (requestType == "query") {
+    this.update(response);
+    goals.update(response);
+  }
 }
 Brute.prototype.onProofFound = function(attempt) {
   goals.onProofFound(attempt)
