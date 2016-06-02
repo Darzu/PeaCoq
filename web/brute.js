@@ -1,5 +1,7 @@
 "use strict";
 
+var MAX_DEPTH = 3;
+
 //TODO:
 // - add priorities to async requests
 //   - and/or: wait until proof process is idle before trying proofs
@@ -68,7 +70,7 @@ function getContextHash(goal) {
   return getContextStr(goal).hashCode();
 }
 
-function BruteAttempt(goal, goalNum, contextHash) {
+function BruteAttempt(goal, goalNum, contextHash, maxDepth) {
   //TODO: can we get away with tracking less state?
   this.goal = goal;
   this.goalNum = goalNum;
@@ -77,6 +79,9 @@ function BruteAttempt(goal, goalNum, contextHash) {
   this.contextHash = contextHash;
   this.isValid = true;
   this.solution = null;
+  this.depth = 0;
+  this.maxDepth = maxDepth;
+  this.partialSolution = [];
 }
 BruteAttempt.prototype.updateValidity = function() {
   if (!this.isValid)
@@ -99,36 +104,91 @@ BruteAttempt.prototype.updateValidity = function() {
 }
 BruteAttempt.prototype.changeGoalNum = function(newGoalNum) {
   this.goalNum = newGoalNum;
-  this.update();
+  this.run();
 }
 BruteAttempt.prototype.hasSolution = function() {
   return !!this.solution;
 }
-BruteAttempt.prototype.update = function() {
+BruteAttempt.prototype.run = function() {
+  var self = this;
+  
+  if (!this.isValid)
+    return;
+ 
+  var onSolveTacSucc = (tactic, query, response) => { 
+    self.solution = query;
+    brute.onProofFound(self);
+  }
+  var onAllSolveTried = () => {
+    if (self.depth < self.maxDepth) {
+      self.depth++;
+      self.run();
+    }
+  }
+  var onAddTacSucc = (tactic, query, response) => {
+    self.partialSolution.push(tactic);
+    self.run();
+  }
+  var onAllAddTried = () => {
+    console.log("Failed to make any progress on "+self.contextHash+" at depth: " + self.depth);
+  }
+  if (this.partialSolution.length < this.depth) {
+    var tactics = getAdditiveTactics(self.goal);
+    var mkTacQuery = (t) => {
+      //This ensures the query makes progress, doesn't just add duplicates,
+      //  and doesn't introduce new goals
+      return "repeat clear_dup; progress ("+t+"; repeat clear_dup); []"
+    }
+    self.tryTactics(tactics, onAddTacSucc, onAllAddTried, true, mkTacQuery);
+  } else {
+    var tactics = getSolveTactics(self.goal);
+    self.tryTactics(tactics, onSolveTacSucc, onAllSolveTried, true);
+  }
+}
+BruteAttempt.prototype.tryTactics = function(tactics, onTacSuccess, onAllTried, stopAfterSucc, mkTacQuery) {
   var self = this;
   var queryGoalNum = this.goalNum;
+  var queryDepth = this.depth;
+  var anySuccess = false;
+
+  if (!mkTacQuery) {
+    mkTacQuery = t => t;
+  }  
+
   var isQueryValid = () => {
-    return self.isValid && self.goalNum === queryGoalNum && !self.hasSolution()
+    return self.isValid 
+      && self.goalNum === queryGoalNum 
+      && self.depth === queryDepth
+      && !(stopAfterSucc && anySuccess)
   }
 
-  var tacs = getSolveTactics(self.goal);
-  _.forEach(tacs, tac => {
-    var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
-    var query = queryPrefix + tac + ".";
+  var promises = []
 
-    //TODO track whether or not the depth finished
-    asyncQueryAndUndo(query, () => !isQueryValid)
+  _.forEach(tactics, tac => {  
+    //TODO extract this
+    var queryPrefix = queryGoalNum > 1 ? queryGoalNum + ": " : "";
+    var prevQuery = _.map(this.partialSolution, t => t + "; ").join("");
+    var query = queryPrefix + prevQuery + mkTacQuery(tac) + ".";
+
+    var promise = asyncQueryAndUndo(query, () => !isQueryValid())
       .then(delayPromise(0))
       .then(function(response) {
-          if (isGood(response)) {
-            if (isQueryValid()) {      
-              self.solution = query;
-              brute.onProofFound(self);
-            }
+        if (isGood(response)) {
+          if (isQueryValid()) {
+            anySuccess = true;
+            onTacSuccess(tac, query, response);
           }
+        }
       })
       .catch(outputError);
+
+    promises.push(promise)
   })  
+
+  Promise.all(promises)
+    .then(function() {
+      onAllTried();
+    });
 }
 
 Brute.prototype.update = function(response) {
@@ -164,9 +224,9 @@ Brute.prototype.update = function(response) {
       var goal = goals[goalIdx];
       var hash = this.curContextHashes[goalIdx];
       assert(!_.any(this.curAttempts, a => a.contextHash === hash));
-      var attempt = new BruteAttempt(goal, goalNum, hash);
+      var attempt = new BruteAttempt(goal, goalNum, hash, MAX_DEPTH);
       this.curAttempts.push(attempt);
-      attempt.update();
+      attempt.run();
     }
   }
 }
@@ -235,7 +295,7 @@ function getAdditiveTactics(goal) {
     "break_if; try congruence",
     "break_match; try congruence",
     "break_let; try congruence",
-    "repeat (break_match; try congruence)",
+    "progress repeat (break_match; try congruence)",
     "break_and",
     "break_exists",
   ];
@@ -244,6 +304,7 @@ function getAdditiveTactics(goal) {
   ];
   var additivePerHyp = [  
     h => "inversion " + h,
+    //Too expensive for now
     // h => "inversion " + h + "; try discriminate",
     // h => "inversion " + h + "; try congruence",
   ];  
@@ -288,6 +349,7 @@ function getAdditiveTactics(goal) {
     hyps.forEach(h =>
       result.push(fn(h))));
 
+  //Too expensive for now
   // additivePerNmHyp.forEach(fn =>
   //   hypsAndLemmas.forEach(nm =>
   //     hyps.forEach(h =>
