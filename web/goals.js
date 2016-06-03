@@ -11,15 +11,15 @@ $(document).ready(function() {
 Goals.prototype.update = function(response) {
     var self = this;
     var goals = window.brute.curGoals;
-    
+
     this.focusedGoals = [];
 
     window.brute.curAttempts.forEach(function(attempt) {
-        var g = {"goalName": getGoalStr(attempt.goal)};
         if (attempt.isValid) {
+            var g = {"goalName": getGoalStr(attempt.goal)};
             g["goalSln"] = attempt.solution;
+            self.focusedGoals.push(g); 
         }
-        self.focusedGoals.push(g);
     });
 
     this.drawPane();
@@ -27,7 +27,7 @@ Goals.prototype.update = function(response) {
 
 Goals.prototype.drawPane = function() {
     var id = "#goalStrs";
-    var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return g.goalSln != ""; }));
+    var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return (!_.isNull(g.goalSln) && g.goalSln != ""); }));
     if (solvedGoals == 0) {
         $("#solvedGoalsCount").html("");
     } else {
@@ -39,7 +39,7 @@ Goals.prototype.drawPane = function() {
         $(id).append("None.");
     }
     this.focusedGoals.forEach(function(g,i) {
-        if (g.goalSln != "") {
+        if (!_.isNull(g.goalSln) && g.goalSln != "") {
             $(id).append("<b>" + g.goalName + ":</b> " + g.goalSln + getGoalBtn(i) + "<br />");
         } else {
             $(id).append(g.goalName + "<br />");
