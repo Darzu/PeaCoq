@@ -95,6 +95,10 @@ function setupEditor() {
                 "Ctrl-Alt-Enter": function(cm) {
                     onCtrlEnter();
                 },
+                
+                "Ctrl-Space": function(cm) {
+                    window.goals.trySuggestions();
+                }
 
             },
             "keyMap": "emacs",

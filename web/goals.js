@@ -77,3 +77,36 @@ Goals.prototype.injectCode = function(code) {
         };}
      , {});
 }
+
+Goals.prototype.suggestCompletions = function(completionList) {
+    cList = [];
+    for (i in completionList) {
+        var code = " " + this.focusedGoals[i].goalSln;
+        cList.push(code);
+    }
+    
+    CodeMirror.showHint(doc.cm, function(cm) {
+        var completions = cList;
+        return {
+            list: completions,
+            from: doc.cm.getCursor(),
+            to: doc.cm.getCursor()
+        };}
+     , {completeSingle: false
+        });
+}
+
+Goals.prototype.trySuggestions = function() {
+    var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return (!_.isNull(g.goalSln) && g.goalSln != ""); }));
+    if (solvedGoals > 0) {
+        cList = [];
+        this.focusedGoals.forEach(function(g,i) {
+            cList.push(i);
+        });
+        this.suggestCompletions(cList);
+    }
+}
+
+function getGoalBtn(index) {
+    return "<button class=\"btn btn-default importButton close\" type=\"button\"  data-dismiss=\"modal\" value=\"" + index + "\">Import Solution</button>";
+}
