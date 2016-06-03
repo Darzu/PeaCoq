@@ -126,8 +126,7 @@ BruteAttempt.prototype.run = function() {
     }
     var queries = [];
     tactics.forEach(tac => {
-      var chain = _.clone(self.partialSolution);
-      chain.push(mkTacQuery(tac));
+      var chain = self.partialSolution.concat([mkTacQuery(tac)]);
       var query = mkQuery(chain, self.goalNum, "; ");
       queries.push(query);
     });
@@ -166,8 +165,10 @@ BruteAttempt.prototype.run = function() {
     var queries = mkQueries(tactics);
     var qToTacs = mkQtoTacMap(tactics, queries);
     var onSolveTacSucc = (query, response) => { 
-      var tactic = qToTacs[query];
-      self.solution = query;
+      var tac = qToTacs[query];
+      var chain = self.partialSolution.concat([tac]);
+      var sln = mkQuery(chain, self.goalNum, self.goalNum === 1 ? ". " : "; ");
+      self.solution = sln;
       brute.onProofFound(self);
     }
     var onAllSolveTried = () => {
