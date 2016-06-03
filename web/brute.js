@@ -343,6 +343,8 @@ Brute.prototype.onProofInvalidated = function(attempt) {
 }
 Brute.prototype.onMinimalProofFound = function(attempt) {
   console.log("WOOT! Min sln! " + attempt.solution); 
+  if (goals.onMinimalProofFound)
+    goals.onMinimalProofFound(attempt);
 }
 
 Brute.prototype.onPtStartProcessing = function() {
