@@ -40,14 +40,16 @@ Goals.prototype.drawPane = function() {
     }
     this.focusedGoals.forEach(function(g,i) {
         if (!_.isNull(g.goalSln) && g.goalSln != "") {
-            $(id).append("<b>" + g.goalName + ":</b> " + g.goalSln + getGoalBtn(i) + "<br />");
+            $(id).append("<code>" + g.goalName + ":</code>" +  "<pre class=\"importBlock\" data-dismiss=\"modal\">" + g.goalSln + "</pre>" + "<br />");
         } else {
             $(id).append(g.goalName + "<br />");
         }
     });
     var self = this;
-    $(".importButton").click(function() {
-        self.injectCode($(this).val());
+
+    $(".importBlock").click(function() {
+        console.log($(this).html());
+        self.injectCode($(this).html());
     });
 }
 
@@ -65,19 +67,13 @@ Goals.prototype.onProofInvalidated = function(attempt) {
   this.update("fake");
 }
 
-Goals.prototype.injectCode = function(i) {
-    var code = " " + this.focusedGoals[i].goalSln;
+Goals.prototype.injectCode = function(code) {
     CodeMirror.showHint(doc.cm, function(cm) {
-        var completions = [code];
+        var completions = [" " + code + " "];
         return {
             list: completions,
             from: doc.cm.getCursor(),
             to: doc.cm.getCursor()
         };}
      , {});
-}
-
-
-function getGoalBtn(index) {
-    return "<button class=\"btn btn-default importButton close\" type=\"button\"  data-dismiss=\"modal\" value=\"" + index + "\">Import Solution</button>";
 }
