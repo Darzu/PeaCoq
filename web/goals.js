@@ -62,3 +62,14 @@ Goals.prototype.onProofInvalidated = function(attempt) {
   console.log("invalidated. " + sln);
   this.update("fake");
 }
+
+Goals.prototype.injectCode = function(code) {
+    CodeMirror.showHint(doc.cm, function(cm) {
+        var completions = [code];
+        return {
+            list: completions,
+            from: doc.cm.getCursor(),
+            to: doc.cm.getCursor()
+        };}
+     , {});
+}
