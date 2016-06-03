@@ -109,6 +109,11 @@ BruteAttempt.prototype.changeGoalNum = function(newGoalNum) {
 BruteAttempt.prototype.hasSolution = function() {
   return !!this.solution;
 }
+function mkQuery(tactics, goalNum, delimiter) {
+  var queryPrefix = goalNum > 1 ? goalNum + ": " : "";
+  var query = queryPrefix + tactics.join(delimiter) + ".";
+  return query;
+}
 BruteAttempt.prototype.run = function() {
   var self = this;
   
@@ -121,9 +126,9 @@ BruteAttempt.prototype.run = function() {
     }
     var queries = [];
     tactics.forEach(tac => {
-      var queryPrefix = self.goalNum > 1 ? self.goalNum + ": " : "";
-      var prevQuery = _.map(self.partialSolution, t => t + "; ").join("");
-      var query = queryPrefix + prevQuery + mkTacQuery(tac) + ".";
+      var chain = _.clone(self.partialSolution);
+      chain.push(mkTacQuery(tac));
+      var query = mkQuery(chain, self.goalNum, "; ");
       queries.push(query);
     });
     return queries;
