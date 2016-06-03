@@ -18,6 +18,7 @@ Goals.prototype.update = function(response) {
         if (attempt.isValid) {
             var g = {"goalName": getGoalStr(attempt.goal)};
             g["goalSln"] = attempt.solution;
+            g["isSlnMinimal"] = attempt.isSlnMinimal;
             self.focusedGoals.push(g); 
         }
     });
@@ -27,7 +28,7 @@ Goals.prototype.update = function(response) {
 
 Goals.prototype.drawPane = function() {
     var id = "#goalStrs";
-    var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return (!_.isNull(g.goalSln) && g.goalSln != ""); }));
+    var solvedGoals = _.size(_.filter(this.focusedGoals,isValidSln));
     if (solvedGoals == 0) {
         $("#solvedGoalsCount").html("");
     } else {
@@ -39,8 +40,8 @@ Goals.prototype.drawPane = function() {
         $(id).append("None.");
     }
     this.focusedGoals.forEach(function(g,i) {
-        if (!_.isNull(g.goalSln) && g.goalSln != "") {
-            $(id).append("<code>" + g.goalName + ":</code>" +  "<pre class=\"importBlock\" data-dismiss=\"modal\">" + g.goalSln + "</pre>" + "<br />");
+        if (isValidSln(g.goalSln)) {
+            $(id).append("<code>" + g.goalName + ":</code>" + minimalBadge(g) + "<pre class=\"importBlock\" data-dismiss=\"modal\">" + g.goalSln + "</pre>" + "<br />");
         } else {
             $(id).append(g.goalName + "<br />");
         }
@@ -66,6 +67,12 @@ Goals.prototype.onProofInvalidated = function(attempt) {
   console.log("invalidated. " + sln);
   this.update("fake");
 }
+Goals.prototype.onMinimalProofFound = function(attempt) {
+  var sln = attempt.solution;
+  var goalNum = attempt.goalNum;
+  this.focusedGoals[goalNum - 1].goalSln = sln;
+  this.update("fake");
+}
 
 Goals.prototype.injectCode = function(code) {
     CodeMirror.showHint(doc.cm, function(cm) {
@@ -81,7 +88,7 @@ Goals.prototype.injectCode = function(code) {
 Goals.prototype.suggestCompletions = function(completionList) {
     cList = [];
     for (i in completionList) {
-        var code = " " + this.focusedGoals[i].goalSln;
+        var code = " " + this.focusedGoals[i].goalSln + " ";
         cList.push(code);
     }
     
@@ -97,7 +104,7 @@ Goals.prototype.suggestCompletions = function(completionList) {
 }
 
 Goals.prototype.trySuggestions = function() {
-    var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return (!_.isNull(g.goalSln) && g.goalSln != ""); }));
+    var solvedGoals = _.size(_.filter(this.focusedGoals,isValidSln));
     if (solvedGoals > 0) {
         cList = [];
         this.focusedGoals.forEach(function(g,i) {
@@ -107,6 +114,14 @@ Goals.prototype.trySuggestions = function() {
     }
 }
 
-function getGoalBtn(index) {
-    return "<button class=\"btn btn-default importButton close\" type=\"button\"  data-dismiss=\"modal\" value=\"" + index + "\">Import Solution</button>";
+function isValidSln(sln) {
+    return !_.isNull(sln) && sln != "";
+}
+
+function minimalBadge(attempt) {
+    if (attempt.isSlnMinimal) {
+        return "&nbsp;&nbsp;<span class=\"label label-primary\">minimal</span>";
+    } else {
+        return "";
+    }
 }
