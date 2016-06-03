@@ -9,7 +9,6 @@ $(document).ready(function() {
 });
 
 Goals.prototype.update = function(response) {
-    console.log(response)
     var self = this;
     var goals = window.brute.curGoals;
     
@@ -27,7 +26,6 @@ Goals.prototype.update = function(response) {
 };
 
 Goals.prototype.drawPane = function() {
-    console.log("drawing goal pane");
     var id = "#goalStrs";
     var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return g.goalSln != ""; }));
     if (solvedGoals == 0) {
