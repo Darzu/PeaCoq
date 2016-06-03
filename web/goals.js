@@ -86,7 +86,10 @@ Goals.prototype.injectCode = function(code) {
         return {
             list: completions,
             from: doc.cm.getCursor(),
-            to: doc.cm.getCursor()
+            to: doc.cm.getCursor(),
+            _handlers: {
+                "pick": [function() {processToPos(doc.cm.getCursor());}]
+            }
         };}
      , {});
 }
@@ -103,7 +106,10 @@ Goals.prototype.suggestCompletions = function(completionList) {
         return {
             list: completions,
             from: doc.cm.getCursor(),
-            to: doc.cm.getCursor()
+            to: doc.cm.getCursor(),
+            _handlers: {
+                "pick": [function() {processToPos(doc.cm.getCursor());}]
+            }
         };}
      , {completeSingle: false
         });

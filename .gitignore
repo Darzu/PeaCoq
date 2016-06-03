@@ -10,3 +10,4 @@ plugin/
 .cabal-sandbox
 cabal.sandbox.config
 daryl_setup.sh
+.vscode
