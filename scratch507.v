@@ -101,6 +101,10 @@ Ltac exploit x :=
  || refine (modusponens _ _ (x _) _).
 
 
+(* ---------------------------------------- *)
+(* START DEMO *)
+(* ---------------------------------------- *)
+
 Inductive my_rel a b c : Prop :=
 | mk_my_rel:
     S (S a) = S b ->
@@ -128,7 +132,6 @@ Proof.
 Qed.
 
 
-
 Lemma foobar:
   forall a b c d,
     my_rel a b c ->
@@ -145,8 +148,9 @@ Proof.
 Qed.
 
 
-
-
+(* ---------------------------------------- *)
+(* END DEMO *)
+(* ---------------------------------------- *)
 
 
 
