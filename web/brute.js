@@ -81,7 +81,8 @@ function BruteAttempt(goal, goalNum, contextHash, maxDepth) {
   this.solution = null;
   this.depth = 0;
   this.maxDepth = maxDepth;
-  this.partialSolution = [];
+  this.slnChain = [];
+  this.isSlnMinimal = false;
 }
 BruteAttempt.prototype.updateValidity = function() {
   if (!this.isValid)
@@ -110,6 +111,9 @@ BruteAttempt.prototype.hasSolution = function() {
   return !!this.solution;
 }
 function mkQuery(tactics, goalNum, delimiter) {
+  if (!delimiter) {
+    delimiter = goalNum === 1 ? ". " : "; "
+  }
   var queryPrefix = goalNum > 1 ? goalNum + ": " : "";
   var query = queryPrefix + tactics.join(delimiter) + ".";
   return query;
@@ -117,7 +121,7 @@ function mkQuery(tactics, goalNum, delimiter) {
 BruteAttempt.prototype.run = function() {
   var self = this;
   
-  if (!this.isValid)
+  if (!self.isValid || (self.hasSolution() && self.isSlnMinimal))
     return;
  
   var mkQueries = (tactics, mkTacQuery) => {
@@ -126,16 +130,16 @@ BruteAttempt.prototype.run = function() {
     }
     var queries = [];
     tactics.forEach(tac => {
-      var chain = self.partialSolution.concat([mkTacQuery(tac)]);
+      var chain = self.slnChain.concat([mkTacQuery(tac)]);
       var query = mkQuery(chain, self.goalNum, "; ");
       queries.push(query);
     });
     return queries;
   }
-  var mkQtoTacMap = (tactics, queries) => {
+  var mkDict = (keys, vals) => {
     var m = {}
-    for (var i = 0; i < tactics.length; i++) {
-      m[queries[i]] = tactics[i];
+    for (var i = 0; i < vals.length; i++) {
+      m[keys[i]] = vals[i];
     }
     return m;
   }
@@ -148,10 +152,10 @@ BruteAttempt.prototype.run = function() {
       return "repeat clear_dup; progress ("+t+"; repeat clear_dup); []"
     }
     var queries = mkQueries(tactics, mkTacQuery);
-    var qToTacs = mkQtoTacMap(tactics, queries);
+    var qToTacs = mkDict(queries, tactics);
     var onAddTacSucc = (query, response) => {
       var tactic = qToTacs[query];
-      self.partialSolution.push(tactic);
+      self.slnChain.push(tactic);
       self.run();
     }
     var onAllAddTried = () => {
@@ -159,17 +163,18 @@ BruteAttempt.prototype.run = function() {
     }
     self.tryQueries(queries, onAddTacSucc, onAllAddTried, true);
   }
-
   var runSolveTacs = () => {
     var tactics = getSolveTactics(self.goal);
     var queries = mkQueries(tactics);
-    var qToTacs = mkQtoTacMap(tactics, queries);
+    var qToTacs = mkDict(queries, tactics);
     var onSolveTacSucc = (query, response) => { 
       var tac = qToTacs[query];
-      var chain = self.partialSolution.concat([tac]);
-      var sln = mkQuery(chain, self.goalNum, self.goalNum === 1 ? ". " : "; ");
+      self.slnChain.push(tac);
+      var chain = self.slnChain;
+      var sln = mkQuery(chain, self.goalNum);
       self.solution = sln;
       brute.onProofFound(self);
+      self.run()
     }
     var onAllSolveTried = () => {
       if (self.depth < self.maxDepth) {
@@ -179,8 +184,35 @@ BruteAttempt.prototype.run = function() {
     }
     self.tryQueries(queries, onSolveTacSucc, onAllSolveTried, true);
   }
+  var runMkSlnMin = () => {
+    var rmvOnePerms = (a) => {
+      var ps = _.map(a, (e, i) => {
+        var r = _.clone(a)
+        r.splice(i, 1);
+        return r
+      })
+      return ps;
+    }
+    var perms = rmvOnePerms(self.slnChain);   
+    perms.pop(); //the last tactic is always necessary 
+    var queries = _.map(perms, a => mkQuery(a, self.goalNum, "; "));
+    var qToIdx = mkDict(queries, _.map(queries, (e,i) => i));
+    var onMkSmaller = (query, response) => { 
+      var idx = qToIdx[query];
+      self.slnChain = perms[idx];
+      self.solution = mkQuery(self.slnChain, self.goalNum);
+      self.run();
+    }
+    var onCantMkSmaller = () => {
+      self.isSlnMinimal = true;
+      brute.onMinimalProofFound(self);
+    }
+    self.tryQueries(queries, onMkSmaller, onCantMkSmaller, true);
+  }
 
-  if (this.partialSolution.length < this.depth) {
+  if (self.hasSolution() && !self.isSlnMinimal) {
+    runMkSlnMin();
+  } else if (self.slnChain.length < self.depth) {
     runAddTacs();
   } else {
     runSolveTacs();    
@@ -277,6 +309,9 @@ Brute.prototype.onProofFound = function(attempt) {
 }
 Brute.prototype.onProofInvalidated = function(attempt) {
   goals.onProofInvalidated(attempt)
+}
+Brute.prototype.onMinimalProofFound = function(attempt) {
+  console.log("WOOT! Min sln! " + attempt.solution); 
 }
 
 Brute.prototype.onPtStartProcessing = function() {

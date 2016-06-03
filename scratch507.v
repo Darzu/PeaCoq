@@ -135,7 +135,8 @@ Lemma foobar:
     a < (if c then b else d) /\ c <> false.
 Proof.
   intros.
-  split.  
+  split.
+  inversion H. break_if; try discriminate. omega.
   inversion H.  
   rewrite H1.  
   omega.
