@@ -40,6 +40,27 @@ if (!"".hashCode) {
     return hash;
   };
 }
+//Copy-pasta: http://stackoverflow.com/questions/9960908/permutations-in-javascript
+function permute(inputArr) {
+  var results = [];
+
+  function _permute(arr, memo) {
+    var cur, memo = memo || [];
+
+    for (var i = 0; i < arr.length; i++) {
+      cur = arr.splice(i, 1);
+      if (arr.length === 0) {
+        results.push(memo.concat(cur));
+      }
+      _permute(arr.slice(), memo.concat(cur));
+      arr.splice(i, 0, cur[0]);
+    }
+
+    return results;
+  }
+
+  return _permute(inputArr);
+}
 
 function assert(cond, msg) {
   if (!cond) {
@@ -174,7 +195,12 @@ BruteAttempt.prototype.run = function() {
       var sln = mkQuery(chain, self.goalNum);
       self.solution = sln;
       brute.onProofFound(self);
-      self.run()
+      if (chain.length == 1) {
+        self.isSlnMinimal = true;
+        brute.onMinimalProofFound(self);
+      } else {
+        self.run()
+      }
     }
     var onAllSolveTried = () => {
       if (self.depth < self.maxDepth) {
@@ -193,13 +219,18 @@ BruteAttempt.prototype.run = function() {
       })
       return ps;
     }
-    var perms = rmvOnePerms(self.slnChain);   
-    perms.pop(); //the last tactic is always necessary 
-    var queries = _.map(perms, a => mkQuery(a, self.goalNum, "; "));
-    var qToIdx = mkDict(queries, _.map(queries, (e,i) => i));
+    var shortPerms = rmvOnePerms(self.slnChain);   
+    shortPerms.pop(); //the last tactic is always necessary
+    var allPerms = _(shortPerms)
+      .map(p => permute(p))
+      .flatten(true)
+      .value();
+    var queries = _.map(allPerms, p => mkQuery(p, self.goalNum, "; "));
+    var indices = _.map(queries, (q, i) => i);
+    var qToIdx = mkDict(queries, indices);
     var onMkSmaller = (query, response) => { 
       var idx = qToIdx[query];
-      self.slnChain = perms[idx];
+      self.slnChain = allPerms[idx];
       self.solution = mkQuery(self.slnChain, self.goalNum);
       self.run();
     }
