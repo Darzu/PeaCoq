@@ -1,6 +1,7 @@
 "use strict";
 
-var MAX_DEPTH = 3;
+var MAX_DEPTH = 10;
+var MAX_LEMMAS = 5;
 
 //TODO:
 // - add priorities to async requests
@@ -104,6 +105,7 @@ function BruteAttempt(goal, goalNum, contextHash, maxDepth) {
   this.maxDepth = maxDepth;
   this.slnChain = [];
   this.isSlnMinimal = false;
+  this.furthestGoal = null;
 }
 BruteAttempt.prototype.updateValidity = function() {
   if (!this.isValid)
@@ -166,7 +168,8 @@ BruteAttempt.prototype.run = function() {
   }
 
   var runAddTacs = () => {
-    var tactics = getAdditiveTactics(self.goal);
+    var goal = self.furthestGoal || self.goal;
+    var tactics = getAdditiveTactics(goal);
     var mkTacQuery = (t) => {
       //This ensures the query makes progress, doesn't just add duplicates,
       //  and doesn't introduce new goals
@@ -177,6 +180,8 @@ BruteAttempt.prototype.run = function() {
     var onAddTacSucc = (query, response) => {
       var tactic = qToTacs[query];
       self.slnChain.push(tactic);
+      var newGoal = response.rGoals.focused[self.goalNum-1];
+      self.furthestGoal = newGoal;
       self.run();
     }
     var onAllAddTried = () => {
@@ -185,7 +190,8 @@ BruteAttempt.prototype.run = function() {
     self.tryQueries(queries, onAddTacSucc, onAllAddTried, true);
   }
   var runSolveTacs = () => {
-    var tactics = getSolveTactics(self.goal);
+    var goal = self.furthestGoal || self.goal;
+    var tactics = getSolveTactics(goal);
     var queries = mkQueries(tactics);
     var qToTacs = mkDict(queries, tactics);
     var onSolveTacSucc = (query, response) => { 
@@ -358,19 +364,32 @@ Brute.prototype.onPtTacticsRefresh = function() {
 }
 
 function getSolveTactics(goal) {
+  var allHyps = _.map(getHyps(goal), h => h.hName);
+  var hyps = _.filter(allHyps, h => !isLowerCase(h[0]));
+
   var solveTacs = [
     "assumption",
     "reflexivity",
     "contradiction",
+    "solve [constructor]",
     "congruence",
     "discriminate",
     "tauto",
     "omega",
     "solve [auto]",
-    //NOTE: these two are dangerous b/c they can unify evars
     "eassumption",
-    "solve [eauto]"
+    "solve [eauto]",
+    "spit; solve [auto]"
   ];
+
+  var solvePerHyp = [  
+    h => "solve [inversion " + h + "]",
+  ];
+
+  solvePerHyp.forEach(fn => 
+    hyps.forEach(h =>
+      solveTacs.push(fn(h))));
+
   return solveTacs;
 }
 
@@ -380,15 +399,17 @@ function getAdditiveTactics(goal) {
   //      (e.g. don't try reflexivity if goal doesn't have equality)
 
   var allHyps = _.map(getHyps(goal), h => h.hName);
-  var lemmas = _.difference(namesPossiblyInScope, 
+  var lemmas = _.take(_.difference(_.clone(namesPossiblyInScope).reverse(), 
     //exclude bogus lemmas. The last thing in namesPossiblyInScope is the
     //  lemma we are trying to prove.
-    ["modusponens", _.last(namesPossiblyInScope)]); 
-  var vars = _.filter(allHyps, h => isLowerCase(h[0]));
+    ["modusponens", _.last(namesPossiblyInScope)]), MAX_LEMMAS);//only take the last 5
+  //TODO: provide better rankings for finding relevant lemmas
+  //var vars = _.filter(allHyps, h => isLowerCase(h[0]));
   var hyps = _.filter(allHyps, h => !isLowerCase(h[0]));
-  var hypsAndLemmas = _.union(lemmas, hyps);
+  //var hypsAndLemmas = _.union(lemmas, hyps);
 
   var additive = [
+    "intros",
     "break_if; try discriminate",
     "break_match; try discriminate",
     "break_let; try discriminate",

@@ -101,9 +101,13 @@ Ltac exploit x :=
  || refine (modusponens _ _ (x _) _).
 
 
-(* ---------------------------------------- *)
+
+
+
+
+(* ---------- *)
 (* START DEMO *)
-(* ---------------------------------------- *)
+(* ---------- *)
 
 Inductive my_rel a b c : Prop :=
 | mk_my_rel:
@@ -131,26 +135,31 @@ Proof.
   omega.
 Qed.
 
+Inductive my_rel2 a b c : Prop :=
+| mk_my_rel:
+    S (S a) = S b ->
+    c = true ->
+    my_rel a b c.
 
-Lemma foobar:
+Lemma foobar1:
+  forall a b c d,
+    my_rel a b c ->
+    a < (if c then b else d) /\ c = true.
+Proof.
+  admit.
+Qed.
+
+Lemma foobar2:
   forall a b c d,
     my_rel a b c ->
     a < (if c then b else d) /\ c <> false.
 Proof.
-  intros.
-  split.
-  inversion H. break_if; try discriminate. omega.
-  inversion H.  
-  rewrite H1.  
-  omega.
-  exploit my_lem1; eauto; intro.
-  congruence.
+  admit.
 Qed.
 
-
-(* ---------------------------------------- *)
+(* ---------- *)
 (* END DEMO *)
-(* ---------------------------------------- *)
+(* ---------- *)
 
 
 
