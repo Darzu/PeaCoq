@@ -1,4 +1,4 @@
-PeaCoq
+PeaCow
 ======
 
 PeaCrow is an augmented version of [the PeaCoq editor](http://goto.ucsd.edu/peacoq). As the user works through a Coq proof, PeaCrow tries to synthesize a series of tactics that can discharge any pending goals. 
@@ -7,7 +7,7 @@ To use PeaCrow, load one of the benchmarks and begin stepping through a proof by
 
 Our report, presentation slide, and benchmarks are all available in the peacrow folder.
 
-Our code contributions are largely in [../web/src/brute.js] and [../web/src/goals.js].
+Our code contributions are largely in [brute.js](../web/src/brute.js) and [goals.js](../web/src/goals.js).
 
 Building PeaCoq/PeaCrow
 -----------------------
