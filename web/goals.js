@@ -29,10 +29,16 @@ Goals.prototype.update = function(response) {
 Goals.prototype.drawPane = function() {
     var id = "#goalStrs";
     var solvedGoals = _.size(_.filter(this.focusedGoals,isValidSln));
+    var solvedMinimalGoals = _.size(_.filter(this.focusedGoals,function(g) { return g.isSlnMinimal}));
     if (solvedGoals == 0) {
         $("#solvedGoalsCount").html("");
     } else {
         $("#solvedGoalsCount").html(solvedGoals);
+    }
+    if (solvedGoals == solvedMinimalGoals) {
+        $("#solvedGoalsCount").addClass("label-primary").removeClass("label-danger");
+    } else {
+        $("#solvedGoalsCount").addClass("label label-danger").removeClass("label-primary");
     }
 
     $("#goalStrs").html("");
