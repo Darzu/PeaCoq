@@ -82,7 +82,7 @@ Goals.prototype.onMinimalProofFound = function(attempt) {
 
 Goals.prototype.injectCode = function(code) {
     CodeMirror.showHint(doc.cm, function(cm) {
-        var completions = [" " + code + " "];
+        var completions = [code + " "];
         return {
             list: completions,
             from: doc.cm.getCursor(),
