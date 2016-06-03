@@ -29,6 +29,13 @@ Goals.prototype.update = function(response) {
 Goals.prototype.drawPane = function() {
     console.log("drawing goal pane");
     var id = "#goalStrs";
+    var solvedGoals = _.size(_.filter(this.focusedGoals,function(g){ return g.goalSln != ""; }));
+    if (solvedGoals == 0) {
+        $("#solvedGoalsCount").html("");
+    } else {
+        $("#solvedGoalsCount").html(solvedGoals);
+    }
+
     $("#goalStrs").html("");
     if (this.focusedGoals.length == 0) {
         $(id).append("None.");
@@ -47,10 +54,11 @@ Goals.prototype.onProofFound = function(attempt) {
   var goalNum = attempt.goalNum;
   this.focusedGoals[goalNum - 1].goalSln = sln;
   console.log("YAY! " + sln + " " + goalNum);
-  this.drawPane();
+  this.update("fake");
 }
 Goals.prototype.onProofInvalidated = function(attempt) {
   var sln = attempt.solution;
   var goalNum = attempt.goalNum;
   console.log("invalidated. " + sln);
+  this.update("fake");
 }

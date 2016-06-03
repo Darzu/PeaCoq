@@ -280,7 +280,8 @@ function addGoals(buttonGroup) {
         "id": "feedback-button",
         "html": $("<span>")
             .append(mkGlyph("fire"))
-            .append(nbsp + nbsp + "Goals"),
+            .append(nbsp + nbsp + "Goals" + nbsp)
+            .append("<span class=\"label label-danger\" id=\"solvedGoalsCount\"></span>"),
     })
         .appendTo(buttonGroup)
         .on("click", function() {
