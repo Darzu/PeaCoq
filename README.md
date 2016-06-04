@@ -1,13 +1,13 @@
-PeaCow
+PeaCrow
 ======
 
 PeaCrow is an augmented version of [the PeaCoq editor](http://goto.ucsd.edu/peacoq). As the user works through a Coq proof, PeaCrow tries to synthesize a series of tactics that can discharge any pending goals. 
 
-To use PeaCrow, load one of the benchmarks and begin stepping through a proof by clicking Next. (In the [sampleproofs.v](../peacrow/sampleproofs.v) file, you might want to put your cursor on line 117 and click Go to Caret to get past all the preliminary tactics.) You can view all pending goals by clicking on the Goals tab. As PeaCrow finds solutions to pending goals, a count of available solutions will appear on the tab text. You can import a solution by opening the Goals tab and clicking on the solution text. You can also import solutions as autocomplete hints by pressing ctrl-space at any time when the editor pane is focused.
+To use PeaCrow, load one of the benchmarks and begin stepping through a proof by clicking Next. (In the [sampleproofs.v](./peacrow/sampleproofs.v) file, you might want to put your cursor on line 117 and click Go to Caret to get past all the preliminary tactics.) You can view all pending goals by clicking on the Goals tab. As PeaCrow finds solutions to pending goals, a count of available solutions will appear on the tab text. You can import a solution by opening the Goals tab and clicking on the solution text. You can also import solutions as autocomplete hints by pressing ctrl-space at any time when the editor pane is focused.
 
-Our report, presentation slide, and benchmarks are all available in the [peacrow](../peacrow) folder.
+Our report, presentation slide, and benchmarks are all available in the [peacrow](./peacrow) folder.
 
-Our code contributions are largely in [brute.js](../web/src/brute.js) and [goals.js](../web/src/goals.js).
+Our code contributions are largely in [brute.js](./web/src/brute.js) and [goals.js](./web/src/goals.js).
 
 Building PeaCoq/PeaCrow
 -----------------------
@@ -28,7 +28,7 @@ download and build PeaCoq:
   $ ./setup.sh
   $ cabal install
 ```
-More detailed installation instructions for OS X and Archlinux are available [here](../INSTALL.md).
+More detailed installation instructions for OS X and Archlinux are available [here](./INSTALL.md).
 
 Running PeaCoq
 --------------
