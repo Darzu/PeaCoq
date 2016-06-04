@@ -27,7 +27,7 @@ git clone https://aur.archlinux.org/coq.git
 cd coq
 git checkout aa60c4ba
 makepkg -sri
-cd ../../PeaCoq
+cd ../
 cabal update
 ./setup.sh
 cabal install```
